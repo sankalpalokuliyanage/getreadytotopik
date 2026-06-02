@@ -45,9 +45,10 @@ export default function AdminPanel() {
           <div className="bg-gray-900 rounded-xl p-6">
             <h2 className="text-xl mb-4">Student List</h2>
             <table className="w-full text-left">
-              <thead><tr><th className="p-2">Name</th><th className="p-2">Email</th></tr></thead>
+              <thead><tr><th className="p-2">Image</th><th className="p-2">Name</th><th className="p-2">Email</th></tr></thead>
               <tbody>{students.map(s => (
                 <tr key={s.id} className="border-b border-gray-800 cursor-pointer hover:bg-gray-800" onClick={() => setSelectedStudent(s)}>
+                  <td className="p-2"><img src={s.avatar_url || 'https://via.placeholder.com/40'} className="w-10 h-10 rounded-full" alt="profile" /></td>
                   <td className="p-2 text-blue-400">{s.full_name}</td>
                   <td className="p-2">{s.email}</td>
                 </tr>
