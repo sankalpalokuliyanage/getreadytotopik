@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
-import { motion } from 'framer-motion'; // Framer Motion භාවිතා කරමු
+import { motion } from 'framer-motion';
 
 export default function Reading() {
   const [exercises, setExercises] = useState([]);
@@ -25,12 +25,26 @@ export default function Reading() {
     setSelectedExercise(name);
   };
 
-  const calculateScore = () => {
+  const calculateScore = async () => {
     let count = 0;
     questions.forEach(q => { if (userAnswers[q.id] === q.correct_answer) count++; });
     setScore(count);
     setShowResults(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // ශිෂ්‍යයාගේ progress එක save කිරීම
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { error } = await supabase.from('student_progress').insert([
+        { 
+          student_id: user.id, 
+          exercise_name: selectedExercise, 
+          score: count 
+        }
+      ]);
+      if (error) console.error("Progress save error:", error);
+      else console.log("Progress saved successfully!");
+    }
   };
 
   if (!selectedExercise) {
