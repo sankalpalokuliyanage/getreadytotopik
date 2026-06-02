@@ -5,9 +5,13 @@ export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState('students');
   const [students, setStudents] = useState([]);
   const [progress, setProgress] = useState([]);
+  const [selectedStudent, setSelectedStudent] = useState(null);
   const [q, setQ] = useState({ exercise_name: '', passage: '', question_text: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: '', image_url: '' });
 
-  useEffect(() => { fetchStudents(); fetchProgress(); }, []);
+  useEffect(() => { 
+    fetchStudents(); 
+    fetchProgress(); 
+  }, []);
 
   const fetchStudents = async () => {
     const { data } = await supabase.from('profiles').select('*').neq('role', 'admin');
@@ -15,8 +19,7 @@ export default function AdminPanel() {
   };
 
   const fetchProgress = async () => {
-    // JOIN query මගින් ලකුණු සහ නම එකවර ලබා ගැනීම
-    const { data } = await supabase.from('student_progress').select('exercise_name, score, profiles(full_name)');
+    const { data } = await supabase.from('student_progress').select('student_id, exercise_name, score');
     if (data) setProgress(data);
   };
 
@@ -24,46 +27,59 @@ export default function AdminPanel() {
     e.preventDefault();
     const { error } = await supabase.from('reading_questions').insert([q]);
     if (error) alert("Error: " + error.message);
-    else { alert("ප්‍රශ්නය සාර්ථකව ඇතුළත් විය!"); setQ({ ...q, question_text: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: '', image_url: '' }); }
+    else { 
+      alert("Question added successfully!"); 
+      setQ({ exercise_name: '', passage: '', question_text: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: '', image_url: '' }); 
+    }
   };
 
   return (
     <div className="p-8 text-white min-h-screen bg-gray-950">
       <div className="flex gap-4 mb-8 border-b border-gray-700 pb-4">
-        <button className={`px-4 py-2 ${activeTab === 'students' ? 'bg-blue-600' : 'bg-gray-800'}`} onClick={() => setActiveTab('students')}>ශිෂ්‍ය ලැයිස්තුව</button>
-        <button className={`px-4 py-2 ${activeTab === 'progress' ? 'bg-blue-600' : 'bg-gray-800'}`} onClick={() => setActiveTab('progress')}>ශිෂ්‍ය ප්‍රගතිය</button>
+        <button className={`px-4 py-2 ${activeTab === 'students' ? 'bg-blue-600' : 'bg-gray-800'}`} onClick={() => setActiveTab('students')}>Student List</button>
         <button className={`px-4 py-2 ${activeTab === 'questions' ? 'bg-blue-600' : 'bg-gray-800'}`} onClick={() => setActiveTab('questions')}>Add Questions</button>
       </div>
 
-      {activeTab === 'students' && (
-        <div className="bg-gray-900 rounded-xl p-6">
-          <table className="w-full text-left">
-            <thead><tr><th className="p-2">නම</th><th className="p-2">Email</th></tr></thead>
-            <tbody>{students.map(s => <tr key={s.id} className="border-b border-gray-800"><td className="p-2">{s.full_name}</td><td className="p-2">{s.email}</td></tr>)}</tbody>
-          </table>
-        </div>
-      )}
-
-      {activeTab === 'progress' && (
-        <div className="bg-gray-900 rounded-xl p-6">
-          <table className="w-full text-left">
-            <thead><tr><th className="p-2">ශිෂ්‍යයා</th><th className="p-2">අභ්‍යාසය</th><th className="p-2">ලකුණු</th></tr></thead>
-            <tbody>
-              {progress.map((p, idx) => (
-                <tr key={idx} className="border-b border-gray-800">
-                  <td className="p-2">{p.profiles?.full_name || "Unknown"}</td>
-                  <td className="p-2 text-blue-400">{p.exercise_name}</td>
-                  <td className="p-2 font-bold">{p.score}</td>
+      {activeTab === 'students' ? (
+        !selectedStudent ? (
+          <div className="bg-gray-900 rounded-xl p-6">
+            <h2 className="text-xl mb-4">Student List</h2>
+            <table className="w-full text-left">
+              <thead><tr><th className="p-2">Name</th><th className="p-2">Email</th></tr></thead>
+              <tbody>{students.map(s => (
+                <tr key={s.id} className="border-b border-gray-800 cursor-pointer hover:bg-gray-800" onClick={() => setSelectedStudent(s)}>
+                  <td className="p-2 text-blue-400">{s.full_name}</td>
+                  <td className="p-2">{s.email}</td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {activeTab === 'questions' && (
+              ))}</tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="bg-gray-900 p-6 rounded-xl">
+            <button className="mb-4 text-blue-400" onClick={() => setSelectedStudent(null)}>← Back to List</button>
+            <h2 className="text-xl mb-4">Progress: {selectedStudent.full_name}</h2>
+            <table className="w-full text-left">
+              <thead><tr><th>Exercise</th><th>Score</th></tr></thead>
+              <tbody>{progress.filter(p => p.student_id === selectedStudent.id).map((p, i) => (
+                <tr key={i}><td>{p.exercise_name}</td><td>{p.score}</td></tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )
+      ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 bg-gray-900 p-6 rounded-xl max-w-2xl">
-          {/* ඔබේ කලින් තිබූ Form එක මෙතැනට දාන්න */}
+          <input required placeholder="Exercise Name" className="p-2 bg-gray-800 rounded" value={q.exercise_name} onChange={(e) => setQ({...q, exercise_name: e.target.value})} />
+          <textarea placeholder="Passage" className="p-2 bg-gray-800 rounded" value={q.passage} onChange={(e) => setQ({...q, passage: e.target.value})} />
+          <input placeholder="Image URL" className="p-2 bg-gray-800 rounded" value={q.image_url} onChange={(e) => setQ({...q, image_url: e.target.value})} />
+          <input required placeholder="Question" className="p-2 bg-gray-800 rounded" value={q.question_text} onChange={(e) => setQ({...q, question_text: e.target.value})} />
+          <div className="grid grid-cols-2 gap-2">
+            <input required placeholder="Option A" className="p-2 bg-gray-800 rounded" value={q.option_a} onChange={(e) => setQ({...q, option_a: e.target.value})} />
+            <input required placeholder="Option B" className="p-2 bg-gray-800 rounded" value={q.option_b} onChange={(e) => setQ({...q, option_b: e.target.value})} />
+            <input required placeholder="Option C" className="p-2 bg-gray-800 rounded" value={q.option_c} onChange={(e) => setQ({...q, option_c: e.target.value})} />
+            <input required placeholder="Option D" className="p-2 bg-gray-800 rounded" value={q.option_d} onChange={(e) => setQ({...q, option_d: e.target.value})} />
+          </div>
+          <input required placeholder="Correct Answer (A/B/C/D)" className="p-2 bg-gray-800 rounded" value={q.correct_answer} onChange={(e) => setQ({...q, correct_answer: e.target.value})} />
+          <button type="submit" className="bg-green-600 p-2 rounded text-white">Submit Question</button>
         </form>
       )}
     </div>
