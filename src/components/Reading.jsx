@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
+import { motion } from 'framer-motion'; // Framer Motion භාවිතා කරමු
 
 export default function Reading() {
   const [exercises, setExercises] = useState([]);
@@ -12,8 +13,8 @@ export default function Reading() {
   useEffect(() => {
     const fetchExercises = async () => {
       const { data } = await supabase.from('reading_questions').select('exercise_name');
-      const uniqueExercises = [...new Set(data.map(item => item.exercise_name))];
-      setExercises(uniqueExercises);
+      const unique = [...new Set(data.map(item => item.exercise_name))];
+      setExercises(unique);
     };
     fetchExercises();
   }, []);
@@ -22,26 +23,29 @@ export default function Reading() {
     const { data } = await supabase.from('reading_questions').select('*').eq('exercise_name', name);
     setQuestions(data);
     setSelectedExercise(name);
-    setShowResults(false);
-    setUserAnswers({});
   };
 
   const calculateScore = () => {
     let count = 0;
-    questions.forEach(q => {
-      if (userAnswers[q.id] === q.correct_answer) count++;
-    });
+    questions.forEach(q => { if (userAnswers[q.id] === q.correct_answer) count++; });
     setScore(count);
     setShowResults(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   if (!selectedExercise) {
     return (
-      <div className="p-12 text-center text-white">
-        <h1 className="text-3xl mb-8">Select an Exercise</h1>
-        <div className="grid gap-4 max-w-md mx-auto">
+      <div className="min-h-screen bg-gray-950 p-12 text-center">
+        <h1 className="text-4xl font-black text-white mb-12 tracking-tight">Reading <span className="text-blue-500">Practice</span></h1>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {exercises.map(ex => (
-            <button key={ex} onClick={() => loadQuestions(ex)} className="p-4 bg-blue-600 rounded-xl hover:bg-blue-700">{ex}</button>
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              key={ex} onClick={() => loadQuestions(ex)} 
+              className="p-8 bg-gray-900 border border-gray-800 rounded-3xl hover:border-blue-500 transition-all text-xl font-bold text-white shadow-xl"
+            >
+              {ex}
+            </motion.button>
           ))}
         </div>
       </div>
@@ -49,35 +53,37 @@ export default function Reading() {
   }
 
   return (
-    <div className="p-8 text-white max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">{selectedExercise}</h1>
+    <div className="min-h-screen bg-gray-950 p-6 md:p-12 text-white">
+      <button onClick={() => {setSelectedExercise(null); setShowResults(false);}} className="mb-6 text-gray-400 hover:text-white">← Back to Exercises</button>
+      
+      <h1 className="text-3xl font-bold mb-8">{selectedExercise}</h1>
+      
       {questions.map((q, idx) => (
-        <div key={q.id} className="mb-8 p-6 bg-gray-900 rounded-xl border border-gray-700">
-          <p className="font-bold mb-4">{idx + 1}. {q.question_text}</p>
-          <div className="grid grid-cols-2 gap-2">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} key={q.id} className="mb-8 p-8 bg-gray-900 rounded-3xl border border-gray-800 shadow-2xl">
+          <p className="text-lg font-medium mb-6">{idx + 1}. {q.question_text}</p>
+          {q.image_url && <img src={q.image_url} className="mb-6 rounded-2xl max-h-64 mx-auto" />}
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {['A', 'B', 'C', 'D'].map(opt => (
-              <button 
-                key={opt}
-                disabled={showResults}
-                onClick={() => setUserAnswers({...userAnswers, [q.id]: opt})}
-                className={`p-3 rounded border ${
-                  userAnswers[q.id] === opt ? 'bg-blue-500' : 'bg-gray-800'
-                } ${showResults && q.correct_answer === opt ? 'bg-green-700' : ''} 
-                  ${showResults && userAnswers[q.id] === opt && q.correct_answer !== opt ? 'bg-red-700' : ''}`
-                }
-              >
+              <button key={opt} disabled={showResults} onClick={() => setUserAnswers({...userAnswers, [q.id]: opt})}
+                className={`p-4 rounded-xl border-2 transition-all ${
+                  userAnswers[q.id] === opt ? 'border-blue-500 bg-blue-500/20' : 'border-gray-700 hover:border-gray-500'
+                } ${showResults && q.correct_answer === opt ? 'border-green-500 bg-green-500/20' : ''}
+                  ${showResults && userAnswers[q.id] === opt && q.correct_answer !== opt ? 'border-red-500 bg-red-500/20' : ''}`
+                }>
                 {opt}: {q[`option_${opt.toLowerCase()}`]}
               </button>
             ))}
           </div>
-        </div>
+        </motion.div>
       ))}
+      
       {!showResults ? (
-        <button onClick={calculateScore} className="w-full py-4 bg-green-600 rounded-xl font-bold">Submit Answers</button>
+        <button onClick={calculateScore} className="w-full py-5 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl font-bold text-lg hover:shadow-lg hover:shadow-blue-500/20 transition-all">Submit Answers</button>
       ) : (
-        <div className="text-center p-6 bg-gray-800 rounded-xl">
-          <h2 className="text-2xl font-bold">Your Score: {score} / {questions.length}</h2>
-          <button onClick={() => setSelectedExercise(null)} className="mt-4 text-blue-400">Back to Exercises</button>
+        <div className="p-8 bg-gray-900 rounded-3xl border-2 border-blue-500 text-center">
+          <h2 className="text-3xl font-black">Your Score: {score} / {questions.length}</h2>
+          <button onClick={() => {setSelectedExercise(null); setShowResults(false); setUserAnswers({})}} className="mt-6 px-6 py-2 bg-gray-800 rounded-full">Try Another</button>
         </div>
       )}
     </div>
