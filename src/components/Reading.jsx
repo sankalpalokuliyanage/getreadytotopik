@@ -10,21 +10,28 @@ export default function Reading() {
   const [showResults, setShowResults] = useState(false);
   const [score, setScore] = useState(0);
 
+  // 1. Database එකෙන් සියලුම Exercise නම් ලබා ගැනීම
   useEffect(() => {
     const fetchExercises = async () => {
       const { data } = await supabase.from('reading_questions').select('exercise_name');
-      const unique = [...new Set(data.map(item => item.exercise_name))];
-      setExercises(unique);
+      if (data) {
+        const unique = [...new Set(data.map(item => item.exercise_name))];
+        setExercises(unique);
+      }
     };
     fetchExercises();
   }, []);
 
+  // 2. තෝරාගත් Exercise එකට අදාළ ප්‍රශ්න ලෝඩ් කිරීම
   const loadQuestions = async (name) => {
     const { data } = await supabase.from('reading_questions').select('*').eq('exercise_name', name);
     setQuestions(data);
     setSelectedExercise(name);
+    setShowResults(false);
+    setUserAnswers({});
   };
 
+  // 3. ලකුණු ගණනය කිරීම සහ Database එකට Upsert කිරීම (පරණ ලකුණු තිබේ නම් ඒවා Update වේ)
   const calculateScore = async () => {
     let count = 0;
     questions.forEach(q => { if (userAnswers[q.id] === q.correct_answer) count++; });
@@ -32,21 +39,24 @@ export default function Reading() {
     setShowResults(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // ශිෂ්‍යයාගේ progress එක save කිරීම
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const { error } = await supabase.from('student_progress').insert([
-        { 
-          student_id: user.id, 
-          exercise_name: selectedExercise, 
-          score: count 
-        }
-      ]);
+      const { error } = await supabase.from('student_progress').upsert(
+        [
+          { 
+            student_id: user.id, 
+            exercise_name: selectedExercise, 
+            score: count,
+            created_at: new Date().toISOString() 
+          }
+        ],
+        { onConflict: 'student_id, exercise_name' }
+      );
       if (error) console.error("Progress save error:", error);
-      else console.log("Progress saved successfully!");
     }
   };
 
+  // UI - කොටස 1: Exercise තෝරාගැනීම
   if (!selectedExercise) {
     return (
       <div className="min-h-screen bg-gray-950 p-12 text-center">
@@ -66,16 +76,17 @@ export default function Reading() {
     );
   }
 
+  // UI - කොටස 2: ප්‍රශ්න පෙන්වීම සහ Submit කිරීම
   return (
     <div className="min-h-screen bg-gray-950 p-6 md:p-12 text-white">
-      <button onClick={() => {setSelectedExercise(null); setShowResults(false);}} className="mb-6 text-gray-400 hover:text-white">← Back to Exercises</button>
+      <button onClick={() => setSelectedExercise(null)} className="mb-6 text-gray-400 hover:text-white">← Back to Exercises</button>
       
       <h1 className="text-3xl font-bold mb-8">{selectedExercise}</h1>
       
       {questions.map((q, idx) => (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} key={q.id} className="mb-8 p-8 bg-gray-900 rounded-3xl border border-gray-800 shadow-2xl">
           <p className="text-lg font-medium mb-6">{idx + 1}. {q.question_text}</p>
-          {q.image_url && <img src={q.image_url} className="mb-6 rounded-2xl max-h-64 mx-auto" />}
+          {q.image_url && <img src={q.image_url} className="mb-6 rounded-2xl max-h-64 mx-auto" alt="Question" />}
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {['A', 'B', 'C', 'D'].map(opt => (
@@ -97,7 +108,7 @@ export default function Reading() {
       ) : (
         <div className="p-8 bg-gray-900 rounded-3xl border-2 border-blue-500 text-center">
           <h2 className="text-3xl font-black">Your Score: {score} / {questions.length}</h2>
-          <button onClick={() => {setSelectedExercise(null); setShowResults(false); setUserAnswers({})}} className="mt-6 px-6 py-2 bg-gray-800 rounded-full">Try Another</button>
+          <button onClick={() => setSelectedExercise(null)} className="mt-6 px-6 py-2 bg-gray-800 rounded-full">Try Another</button>
         </div>
       )}
     </div>
