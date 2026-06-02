@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
-import Login from './components/Login';
+import Login from './components/login';
 import Dashboard from './components/Dashboard';
 import AdminPanel from './components/AdminPanel';
 
