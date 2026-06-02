@@ -28,4 +28,4 @@ lerna-debug.log*
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
+
