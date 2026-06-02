@@ -1,117 +1,84 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom'; // අලුතින් එකතු කළා
 
-export default function Reading() {
-  const [exercises, setExercises] = useState([]);
-  const [selectedExercise, setSelectedExercise] = useState(null);
-  const [questions, setQuestions] = useState([]);
-  const [passage, setPassage] = useState(""); // අලුත් state එකක්
-  const [userAnswers, setUserAnswers] = useState({});
-  const [showResults, setShowResults] = useState(false);
-  const [score, setScore] = useState(0);
+export default function Dashboard() {
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate(); // Navigation සඳහා
 
   useEffect(() => {
-    const fetchExercises = async () => {
-      const { data } = await supabase.from('reading_questions').select('exercise_name');
-      if (data) {
-        const unique = [...new Set(data.map(item => item.exercise_name))];
-        setExercises(unique);
-      }
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
     };
-    fetchExercises();
+    fetchUser();
   }, []);
 
-  const loadQuestions = async (name) => {
-    const { data } = await supabase.from('reading_questions').select('*').eq('exercise_name', name);
-    if (data) {
-      setQuestions(data);
-      // ඕනෑම ප්‍රශ්නයක passage එකක් තිබේදැයි සොයා එය තබාගන්න
-      const foundPassage = data.find(q => q.passage)?.passage || "";
-      setPassage(foundPassage);
-      setSelectedExercise(name);
-      setShowResults(false);
-      setUserAnswers({});
-    }
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.clear();
+    window.location.reload();
   };
-
-  const calculateScore = async () => {
-    let count = 0;
-    questions.forEach(q => { if (userAnswers[q.id] === q.correct_answer) count++; });
-    setScore(count);
-    setShowResults(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase.from('student_progress').upsert(
-        [{ student_id: user.id, exercise_name: selectedExercise, score: count, created_at: new Date().toISOString() }],
-        { onConflict: 'student_id, exercise_name' }
-      );
-    }
-  };
-
-  if (!selectedExercise) {
-    return (
-      <div className="min-h-screen bg-gray-950 p-12 text-center">
-        <h1 className="text-4xl font-black text-white mb-12 tracking-tight">Reading <span className="text-blue-500">Practice</span></h1>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {exercises.map(ex => (
-            <motion.button 
-              whileHover={{ scale: 1.05 }}
-              key={ex} onClick={() => loadQuestions(ex)} 
-              className="p-8 bg-gray-900 border border-gray-800 rounded-3xl hover:border-blue-500 transition-all text-xl font-bold text-white shadow-xl"
-            >
-              {ex}
-            </motion.button>
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-gray-950 p-6 md:p-12 text-white">
-      <button onClick={() => setSelectedExercise(null)} className="mb-6 text-gray-400 hover:text-white">← Back to Exercises</button>
-      
-      <h1 className="text-3xl font-bold mb-8">{selectedExercise}</h1>
-      
-      {/* passage state එක භාවිතා කර පෙන්වීම */}
-      {passage && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-8 p-6 bg-blue-900/10 border border-blue-800 rounded-2xl">
-          <h3 className="text-blue-400 font-bold mb-2">Reading Passage</h3>
-          <p className="text-gray-200 leading-relaxed whitespace-pre-line">{passage}</p>
-        </motion.div>
-      )}
-      
-      {questions.map((q, idx) => (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} key={q.id} className="mb-8 p-8 bg-gray-900 rounded-3xl border border-gray-800 shadow-2xl">
-          <p className="text-lg font-medium mb-6">{idx + 1}. {q.question_text}</p>
-          {q.image_url && <img src={q.image_url} className="mb-6 rounded-2xl max-h-64 mx-auto" alt="Question" />}
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {['A', 'B', 'C', 'D'].map(opt => (
-              <button key={opt} disabled={showResults} onClick={() => setUserAnswers({...userAnswers, [q.id]: opt})}
-                className={`p-4 rounded-xl border-2 transition-all ${
-                  userAnswers[q.id] === opt ? 'border-blue-500 bg-blue-500/20' : 'border-gray-700 hover:border-gray-500'
-                } ${showResults && q.correct_answer === opt ? 'border-green-500 bg-green-500/20' : ''}
-                  ${showResults && userAnswers[q.id] === opt && q.correct_answer !== opt ? 'border-red-500 bg-red-500/20' : ''}`
-                }>
-                {opt}: {q[`option_${opt.toLowerCase()}`]}
-              </button>
-            ))}
+    <div className="min-h-screen bg-gray-950 text-white p-6 md:p-12 font-sans">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-10">
+          <div>
+            <h1 className="text-3xl font-bold text-blue-400">TOPIK Dashboard</h1>
+            <p className="text-gray-400">Welcome back to your learning journey</p>
           </div>
-        </motion.div>
-      ))}
-      
-      {!showResults ? (
-        <button onClick={calculateScore} className="w-full py-5 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl font-bold text-lg hover:shadow-lg hover:shadow-blue-500/20 transition-all">Submit Answers</button>
-      ) : (
-        <div className="p-8 bg-gray-900 rounded-3xl border-2 border-blue-500 text-center">
-          <h2 className="text-3xl font-black">Your Score: {score} / {questions.length}</h2>
-          <button onClick={() => setSelectedExercise(null)} className="mt-6 px-6 py-2 bg-gray-800 rounded-full">Try Another</button>
+          <button 
+            onClick={handleLogout} 
+            className="px-4 py-2 bg-red-900/30 border border-red-800 text-red-400 rounded-lg hover:bg-red-800 transition"
+          >
+            Logout
+          </button>
         </div>
-      )}
+
+        {/* Profile & Level Card */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+            className="p-6 bg-gray-900 border border-gray-800 rounded-2xl flex items-center gap-4"
+          >
+            {user?.user_metadata?.avatar_url && (
+              <img 
+                src={user.user_metadata.avatar_url} 
+                alt="Profile" 
+                className="w-16 h-16 rounded-full border-2 border-blue-500" 
+              />
+            )}
+            <div>
+              <h2 className="text-xl font-bold">{user?.user_metadata?.full_name || "User"}</h2>
+              <p className="text-gray-400 text-sm">{user?.email}</p>
+            </div>
+          </motion.div>
+
+          <div className="p-6 bg-blue-900/20 border border-blue-800 rounded-2xl flex flex-col justify-center">
+            <h3 className="text-gray-400 uppercase text-xs tracking-widest mb-1">Current Level</h3>
+            <p className="text-3xl font-black text-blue-400">Beginner</p>
+          </div>
+        </div>
+
+        {/* Start Section - මෙතැනදී Start Reading ලෙස වෙනස් කළා */}
+        <div className="p-8 bg-gray-900 border border-gray-800 rounded-2xl text-center">
+          <h2 className="text-2xl font-bold mb-4">Ready to Practice?</h2>
+          <button 
+            onClick={() => navigate('/reading')} 
+            className="px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-xl font-bold hover:scale-105 transition-transform text-gray-950"
+          >
+            Start Reading
+          </button>
+        </div>
+
+        {/* Footer */}
+        <p className="mt-12 text-center text-gray-600 text-sm">
+          Developed by <span className="text-blue-400">Sankalpa Lokuliyanage</span> | Kyungpook National University
+        </p>
+      </div>
     </div>
   );
 }
