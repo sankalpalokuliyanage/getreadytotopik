@@ -6,11 +6,11 @@ export default function Reading() {
   const [exercises, setExercises] = useState([]);
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [questions, setQuestions] = useState([]);
+  const [passage, setPassage] = useState(""); // අලුත් state එකක්
   const [userAnswers, setUserAnswers] = useState({});
   const [showResults, setShowResults] = useState(false);
   const [score, setScore] = useState(0);
 
-  // 1. Database එකෙන් සියලුම Exercise නම් ලබා ගැනීම
   useEffect(() => {
     const fetchExercises = async () => {
       const { data } = await supabase.from('reading_questions').select('exercise_name');
@@ -22,16 +22,19 @@ export default function Reading() {
     fetchExercises();
   }, []);
 
-  // 2. තෝරාගත් Exercise එකට අදාළ ප්‍රශ්න ලෝඩ් කිරීම
   const loadQuestions = async (name) => {
     const { data } = await supabase.from('reading_questions').select('*').eq('exercise_name', name);
-    setQuestions(data);
-    setSelectedExercise(name);
-    setShowResults(false);
-    setUserAnswers({});
+    if (data) {
+      setQuestions(data);
+      // ඕනෑම ප්‍රශ්නයක passage එකක් තිබේදැයි සොයා එය තබාගන්න
+      const foundPassage = data.find(q => q.passage)?.passage || "";
+      setPassage(foundPassage);
+      setSelectedExercise(name);
+      setShowResults(false);
+      setUserAnswers({});
+    }
   };
 
-  // 3. ලකුණු ගණනය කිරීම සහ Database එකට Upsert කිරීම
   const calculateScore = async () => {
     let count = 0;
     questions.forEach(q => { if (userAnswers[q.id] === q.correct_answer) count++; });
@@ -42,20 +45,12 @@ export default function Reading() {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       await supabase.from('student_progress').upsert(
-        [
-          { 
-            student_id: user.id, 
-            exercise_name: selectedExercise, 
-            score: count,
-            created_at: new Date().toISOString() 
-          }
-        ],
+        [{ student_id: user.id, exercise_name: selectedExercise, score: count, created_at: new Date().toISOString() }],
         { onConflict: 'student_id, exercise_name' }
       );
     }
   };
 
-  // UI - කොටස 1: Exercise තෝරාගැනීම
   if (!selectedExercise) {
     return (
       <div className="min-h-screen bg-gray-950 p-12 text-center">
@@ -75,18 +70,17 @@ export default function Reading() {
     );
   }
 
-  // UI - කොටස 2: ප්‍රශ්න සහ ඡේදය පෙන්වීම
   return (
     <div className="min-h-screen bg-gray-950 p-6 md:p-12 text-white">
       <button onClick={() => setSelectedExercise(null)} className="mb-6 text-gray-400 hover:text-white">← Back to Exercises</button>
       
       <h1 className="text-3xl font-bold mb-8">{selectedExercise}</h1>
       
-      {/* ඡේදය පෙන්වන කොටස */}
-      {questions.length > 0 && questions[0].passage && (
+      {/* passage state එක භාවිතා කර පෙන්වීම */}
+      {passage && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-8 p-6 bg-blue-900/10 border border-blue-800 rounded-2xl">
           <h3 className="text-blue-400 font-bold mb-2">Reading Passage</h3>
-          <p className="text-gray-200 leading-relaxed whitespace-pre-line">{questions[0].passage}</p>
+          <p className="text-gray-200 leading-relaxed whitespace-pre-line">{passage}</p>
         </motion.div>
       )}
       
