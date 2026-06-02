@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom'; // අලුතින් එකතු කළා
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
+  const navigate = useNavigate(); // Navigation සඳහා
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -14,13 +16,8 @@ export default function Dashboard() {
   }, []);
 
   const handleLogout = async () => {
-    // 1. Supabase එකෙන් Sign out වෙන්න
     await supabase.auth.signOut();
-    
-    // 2. අමතර ආරක්ෂාවට Local Storage එකත් ක්ලියර් කරන්න
     localStorage.clear();
-    
-    // 3. පේජ් එක Refresh කරන්න
     window.location.reload();
   };
 
@@ -66,11 +63,14 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Start Section */}
+        {/* Start Section - මෙතැනදී Start Reading ලෙස වෙනස් කළා */}
         <div className="p-8 bg-gray-900 border border-gray-800 rounded-2xl text-center">
           <h2 className="text-2xl font-bold mb-4">Ready to Practice?</h2>
-          <button className="px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-xl font-bold hover:scale-105 transition-transform text-gray-950">
-            Start TOPIK Lesson
+          <button 
+            onClick={() => navigate('/reading')} 
+            className="px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-xl font-bold hover:scale-105 transition-transform text-gray-950"
+          >
+            Start Reading
           </button>
         </div>
 
