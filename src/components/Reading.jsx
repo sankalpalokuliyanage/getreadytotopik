@@ -10,7 +10,6 @@ export default function Reading() {
   const [showResults, setShowResults] = useState(false);
   const [score, setScore] = useState(0);
 
-  // 1. Database එකෙන් සියලුම Exercise නම් ලබා ගැනීම
   useEffect(() => {
     const fetchExercises = async () => {
       const { data } = await supabase.from('reading_questions').select('exercise_name');
@@ -22,7 +21,6 @@ export default function Reading() {
     fetchExercises();
   }, []);
 
-  // 2. තෝරාගත් Exercise එකට අදාළ ප්‍රශ්න ලෝඩ් කිරීම
   const loadQuestions = async (name) => {
     const { data } = await supabase.from('reading_questions').select('*').eq('exercise_name', name);
     setQuestions(data);
@@ -31,7 +29,6 @@ export default function Reading() {
     setUserAnswers({});
   };
 
-  // 3. ලකුණු ගණනය කිරීම සහ Database එකට Upsert කිරීම (පරණ ලකුණු තිබේ නම් ඒවා Update වේ)
   const calculateScore = async () => {
     let count = 0;
     questions.forEach(q => { if (userAnswers[q.id] === q.correct_answer) count++; });
@@ -39,24 +36,28 @@ export default function Reading() {
     setShowResults(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
+    // ශිෂ්‍යයාගේ progress එක save කිරීම
     const { data: { user } } = await supabase.auth.getUser();
+    console.log("Current User ID:", user?.id);
+
     if (user) {
-      const { error } = await supabase.from('student_progress').upsert(
-        [
-          { 
-            student_id: user.id, 
-            exercise_name: selectedExercise, 
-            score: count,
-            created_at: new Date().toISOString() 
-          }
-        ],
-        { onConflict: 'student_id, exercise_name' }
-      );
-      if (error) console.error("Progress save error:", error);
+      const { data, error } = await supabase.from('student_progress').upsert([
+        { 
+          student_id: user.id, 
+          exercise_name: selectedExercise, 
+          score: count,
+          created_at: new Date().toISOString()
+        }
+      ], { onConflict: 'student_id, exercise_name' });
+
+      if (error) {
+        console.error("Error saving progress:", error);
+      } else {
+        console.log("Success:", data);
+      }
     }
   };
 
-  // UI - කොටස 1: Exercise තෝරාගැනීම
   if (!selectedExercise) {
     return (
       <div className="min-h-screen bg-gray-950 p-12 text-center">
@@ -76,7 +77,6 @@ export default function Reading() {
     );
   }
 
-  // UI - කොටස 2: ප්‍රශ්න පෙන්වීම සහ Submit කිරීම
   return (
     <div className="min-h-screen bg-gray-950 p-6 md:p-12 text-white">
       <button onClick={() => setSelectedExercise(null)} className="mb-6 text-gray-400 hover:text-white">← Back to Exercises</button>
