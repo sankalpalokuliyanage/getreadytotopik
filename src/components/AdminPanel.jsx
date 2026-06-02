@@ -6,12 +6,12 @@ export default function AdminPanel() {
   const [students, setStudents] = useState([]);
   const [progress, setProgress] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
-  const [q, setQ] = useState({ exercise_name: '', passage: '', question_text: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: '', image_url: '' });
+  
+  // අලුත් state එකක්: Exercise නම ස්ථිරව තබා ගැනීමට
+  const [currentExercise, setCurrentExercise] = useState('');
+  const [q, setQ] = useState({ passage: '', question_text: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: '', image_url: '' });
 
-  useEffect(() => { 
-    fetchStudents(); 
-    fetchProgress(); 
-  }, []);
+  useEffect(() => { fetchStudents(); fetchProgress(); }, []);
 
   const fetchStudents = async () => {
     const { data } = await supabase.from('profiles').select('*').neq('role', 'admin');
@@ -25,11 +25,12 @@ export default function AdminPanel() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.from('reading_questions').insert([q]);
+    // currentExercise එකත් ප්‍රශ්නයට එකතු කර insert කිරීම
+    const { error } = await supabase.from('reading_questions').insert([{ ...q, exercise_name: currentExercise }]);
     if (error) alert("Error: " + error.message);
     else { 
-      alert("Question added successfully!"); 
-      setQ({ exercise_name: '', passage: '', question_text: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: '', image_url: '' }); 
+      alert("Question added to " + currentExercise + "!"); 
+      setQ({ passage: '', question_text: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: '', image_url: '' }); 
     }
   };
 
@@ -68,20 +69,30 @@ export default function AdminPanel() {
           </div>
         )
       ) : (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 bg-gray-900 p-6 rounded-xl max-w-2xl">
-          <input required placeholder="Exercise Name" className="p-2 bg-gray-800 rounded" value={q.exercise_name} onChange={(e) => setQ({...q, exercise_name: e.target.value})} />
-          <textarea placeholder="Passage" className="p-2 bg-gray-800 rounded" value={q.passage} onChange={(e) => setQ({...q, passage: e.target.value})} />
-          <input placeholder="Image URL" className="p-2 bg-gray-800 rounded" value={q.image_url} onChange={(e) => setQ({...q, image_url: e.target.value})} />
-          <input required placeholder="Question" className="p-2 bg-gray-800 rounded" value={q.question_text} onChange={(e) => setQ({...q, question_text: e.target.value})} />
-          <div className="grid grid-cols-2 gap-2">
-            <input required placeholder="Option A" className="p-2 bg-gray-800 rounded" value={q.option_a} onChange={(e) => setQ({...q, option_a: e.target.value})} />
-            <input required placeholder="Option B" className="p-2 bg-gray-800 rounded" value={q.option_b} onChange={(e) => setQ({...q, option_b: e.target.value})} />
-            <input required placeholder="Option C" className="p-2 bg-gray-800 rounded" value={q.option_c} onChange={(e) => setQ({...q, option_c: e.target.value})} />
-            <input required placeholder="Option D" className="p-2 bg-gray-800 rounded" value={q.option_d} onChange={(e) => setQ({...q, option_d: e.target.value})} />
+        <div className="max-w-2xl">
+          {/* පියවර 1: Exercise නම සැකසීම */}
+          <div className="bg-gray-900 p-6 rounded-xl mb-6">
+            <input placeholder="Set Exercise Name (e.g. TOPIK-01)" className="w-full p-2 bg-blue-900/20 border border-blue-500 rounded text-white" value={currentExercise} onChange={(e) => setCurrentExercise(e.target.value)} />
           </div>
-          <input required placeholder="Correct Answer (A/B/C/D)" className="p-2 bg-gray-800 rounded" value={q.correct_answer} onChange={(e) => setQ({...q, correct_answer: e.target.value})} />
-          <button type="submit" className="bg-green-600 p-2 rounded text-white">Submit Question</button>
-        </form>
+
+          {/* පියවර 2: ප්‍රශ්න එකතු කිරීම */}
+          {currentExercise && (
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4 bg-gray-900 p-6 rounded-xl">
+              <h3 className="font-bold text-blue-400">Adding to: {currentExercise}</h3>
+              <textarea placeholder="Passage" className="p-2 bg-gray-800 rounded" value={q.passage} onChange={(e) => setQ({...q, passage: e.target.value})} />
+              <input placeholder="Image URL" className="p-2 bg-gray-800 rounded" value={q.image_url} onChange={(e) => setQ({...q, image_url: e.target.value})} />
+              <input required placeholder="Question" className="p-2 bg-gray-800 rounded" value={q.question_text} onChange={(e) => setQ({...q, question_text: e.target.value})} />
+              <div className="grid grid-cols-2 gap-2">
+                <input required placeholder="Option A" className="p-2 bg-gray-800 rounded" value={q.option_a} onChange={(e) => setQ({...q, option_a: e.target.value})} />
+                <input required placeholder="Option B" className="p-2 bg-gray-800 rounded" value={q.option_b} onChange={(e) => setQ({...q, option_b: e.target.value})} />
+                <input required placeholder="Option C" className="p-2 bg-gray-800 rounded" value={q.option_c} onChange={(e) => setQ({...q, option_c: e.target.value})} />
+                <input required placeholder="Option D" className="p-2 bg-gray-800 rounded" value={q.option_d} onChange={(e) => setQ({...q, option_d: e.target.value})} />
+              </div>
+              <input required placeholder="Correct Answer (A/B/C/D)" className="p-2 bg-gray-800 rounded" value={q.correct_answer} onChange={(e) => setQ({...q, correct_answer: e.target.value})} />
+              <button type="submit" className="bg-green-600 p-2 rounded text-white font-bold">Submit Question</button>
+            </form>
+          )}
+        </div>
       )}
     </div>
   );
